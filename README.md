@@ -1,3 +1,4 @@
+# Warning: Contains Puns
 # Smithy
 This is a demo node.js crud app. I'm intending to build it as a toy application to practice new things, not as a production app.
 
