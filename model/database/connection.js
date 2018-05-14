@@ -5,7 +5,7 @@ var uuidParser = require ('uuid-parse');
 
 var options ={
 // turn this on for debug info
-    debug: "false",
+//    debug: "false",
 
     port: 3306,
     host: "localhost",
@@ -13,32 +13,36 @@ var options ={
     password: "dummypassword",
     database: "forge"
 };
-var connection = mysql.createConnection(options);
 
 module.exports = {
-    listRows: function()
+    listRows: function(res, out)
     {
+        var connection = mysql.createConnection(options);
         connection.connect(function (err) {
             if (err) {
                 console.error('error connecting: ' + err.stack);
+                res.render('index', { title: 'My smithy.', error: err});
+
                 return;
             }
             console.log('connected as id ' + connection.threadId);
             try {
-                connection.query('SELECT count(id) from forge.tickets', function (error, results, fields) {
+                connection.query('SELECT * from forge.tickets', function (error, results, fields) {
                     if (error) throw error;
-                    connection.end();
-                    res.send("Found {0} rows.".formatUnicorn(results.toString()));
+                    var output = processListResults(results);
+                    out (res, output);
                 });
-                connection.end();
             } catch (error){
                 console.log ("Error! " + error);
+                out (res, error);
+            } finally
+            {
                 connection.end();
-                res.send("Error: " + error);
             }
         });
     },
     addTicket: function(res, name, description) {
+        var connection = mysql.createConnection(options);
         var guid = uuid();
         var post = {ticketName: name, ticketDescription: description, guid: Buffer.from(uuidParser.parse(guid))}
         connection.connect(function (err) {
@@ -62,7 +66,8 @@ module.exports = {
         });
     },
 
-    getTicket: function(guid, res) {
+    getTicket: function(guid, res, out) {
+        var connection = mysql.createConnection(options);
         connection.connect(function (err) {
             if (err) {
                 console.error('error connecting: ' + err.stack);
@@ -71,17 +76,32 @@ module.exports = {
             console.log('connected as id ' + connection.threadId);
             try {
                 var buffer = Buffer.from(uuidParser.parse(guid));
-                connection.query('SELECT * from forge.tickets WHERE guid = ?', {guid: buffer}, function (error, results, fields) {
+                connection.query('SELECT * from forge.tickets WHERE ?', {guid: buffer}, function (error, results, fields) {
                     if (error) throw error;
-                    connection.end();
-                    res.send("Found {0} rows.".formatUnicorn(results.toString()));
+                    var output = processGetResult(results)
+                    out(res, output);
                 });
-                connection.end();
             } catch (error){
                 console.log ("Error! " + error);
+                out (res, error)
+            } finally {
                 connection.end();
-                res.send("Error: " + error);
             }
         });
     }
+}
+
+function processListResults(results) {
+    var tickets = [];
+    results.forEach(function (item){
+        tickets.push ({name: item.ticketName, details: item.ticketDescription, guid: uuidParser.unparse(item.guid)});
+    });
+    return tickets;
+}
+
+function processGetResult (results) {
+    if (results.length !=1) {
+        return {error: "Invalid result from the server."}
+    }
+    return {title: results[0].ticketName, description: results[0].ticketDescription};
 }

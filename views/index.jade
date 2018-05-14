@@ -2,4 +2,13 @@ extends layout
 
 block content
   h1= title
-  p Welcome to #{title}
+  p Welcome to  my #{title}
+  p How many irons are in the fire?
+  unless error
+    ul
+      for ticket in tickets
+       li: a(href="getTicket/"+ticket.guid) #{ticket.name}
+      else
+        li Sorry, no irons found. Consider eating some spinach.!
+  else
+    p Something is on fire: #{error}
